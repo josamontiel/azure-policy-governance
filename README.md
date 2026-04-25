@@ -1,73 +1,95 @@
-# Building an Azure Governance MVP
+# Building an Azure Governance MVP 🛡️
 
-A hands-on project to simulate what a security engineer actually does when locking down a "Wild West" Azure environment — using only **Azure Policy**.
+A hands-on project simulating what a security engineer actually does when locking down a "Wild West" Azure environment — using **Azure Policy** as the enforcement layer.
 
----
-
-## Phase 1: Lab Setup
-Everything starts with a clean resource group. I created `rg-governance-lab` in my Azure subscription — no resources inside yet, just a sandbox where I could safely test guardrails without affecting anything else.  
-
-<img width="273" height="282" alt="Screenshot 2026-04-24 at 20 41 51" src="https://github.com/user-attachments/assets/7884627f-c4a1-4443-8579-91bf2490c5f8" />
+The goal isn't to learn a tool. It's to build a working control framework: prevention that scales, visibility that lasts, and operations you can hand to someone else.
 
 ---
 
-## Phase 2: Tagging 
-I assigned the built-in policy **Require a tag and its value on resources** to the RG with effect = `Deny`.  
-The rule? All resources must carry a `CostCenter=IT` tag. 
+## The Problem
 
-<img width="709" height="487" alt="Screenshot 2026-04-24 at 20 42 54" src="https://github.com/user-attachments/assets/473a157b-31d3-4d81-a665-2b3b45100631" />
+Imagine inheriting an Azure subscription with no tagging discipline, storage accounts open to the public internet, and resources deployed in whatever region the last engineer felt like clicking. No baseline, no inheritance, no audit trail.
 
-<img width="1607" height="709" alt="Screenshot 2026-04-24 at 20 47 57" src="https://github.com/user-attachments/assets/4bf64ebf-abaf-4fbc-8901-f41fe415fedf" />
+This project builds the response to that scenario, one phase at a time — starting with a single resource group and ending with version-controlled policy deployed through a pipeline.
 
+---
 
-When I tried to spin up a Virtual Network without the tag, Azure blocked me instantly.  
-> First win: governance before deployment, not after.
+## Phase 1: Foundations ✅
 
-<img width="1610" height="282" alt="Screenshot 2026-04-24 at 20 50 08" src="https://github.com/user-attachments/assets/26f99f6a-cdfa-4753-a713-deefc7e3b637" />
+A clean resource group (`rg-governance-lab`) as the initial sandbox, plus the first three guardrails:
 
+- **Tag enforcement.** The built-in *Require a tag and its value on resources* policy, assigned with `Deny`, requiring `costCenter=IT` on every resource. First test deployment without the tag was blocked at validation — governance before deployment, not after.
+- **Custom blob policy.** A custom definition targeting `Microsoft.Storage/storageAccounts`, blocking creation when `allowBlobPublicAccess` isn't explicitly false. Effect parameterized (`Audit` / `Deny` / `Disabled`) so the same definition can roll out gradually.
+- **Foundational initiative.** Both policies bundled with the built-in *Allowed locations* policy into a single custom initiative — `governance-lab-security-baselines` — so the whole baseline assigns as one unit.
 
-
-<img width="462" height="149" alt="Screenshot 2026-04-24 at 20 53 31" src="https://github.com/user-attachments/assets/bb54a0a1-6a3d-4eb8-96b8-fb5ca1c38270" />
-
+<img width="1448" height="577" alt="Screenshot 2026-04-25 at 13 23 19" src="https://github.com/user-attachments/assets/beff4a8c-885d-40c0-85c3-a5f628a4fe39" />
 
 
 ---
 
-## Phase 3: Custom Policy – Block Public Blob Storage
-Built my first custom policy definition. The JSON rule targets `Microsoft.Storage/storageAccounts` and checks `allowBlobPublicAccess` — if it’s true, creation is denied.  
+## Phase 2: Scaling Enforcement ✅
 
-This mimics a real-world, secure-by-default storage policy. A quick test deployment fails exactly as designed.
+A baseline pinned to one RG isn't governance — it's a personal sandbox. This phase lifted the initiative up the hierarchy:
 
-<img width="691" height="282" alt="Screenshot 2026-04-24 at 21 03 35" src="https://github.com/user-attachments/assets/079a0f99-e4cf-4b70-9d3d-4203e5e6e154" />
+- Created a Management Group structure: `mg-governance-lab` (root) → `mg-governance-lab-prod` (child).
+- Moved the subscription under `mg-governance-lab-prod`.
+- Re-assigned the initiative at the MG scope, with a system-assigned managed identity attached for future remediation work.
+- Removed the original RG-scope assignment only after confirming MG-level evaluation was live.
 
-<img width="568" height="206" alt="Screenshot 2026-04-24 at 21 06 38" src="https://github.com/user-attachments/assets/6ab1ace0-62b2-44a9-98b2-3b81ed6d3939" />
+  <img width="974" height="219" alt="Screenshot 2026-04-25 at 13 01 15" src="https://github.com/user-attachments/assets/9003a719-8d63-4987-a16e-174d9a7417fe" />
 
 
----
+The mechanics are trivial; the mindset shift is the whole point. Any future subscription that lands in this MG inherits the baseline automatically — no ticket, no checklist.
 
-## Phase 4: The Initiative 
-Rather than assigning individual policies one by one, I bundled everything into a single custom **Initiative**:  
-*"Governance Lab Security Baseline"*  
+In parallel, the blob public-access policy was flipped from `Deny` to `Audit` to collect real non-compliance data ahead of the rollout work in Phase 5.
 
-Now I can assign tagging, public blob blocking, and an ```Allowed locations``` policy all at once.  
-This is the scalable way to enforce multiple controls across subscriptions — the jump from “someone who knows policy” to “someone who governs Azure.”
-
-<img width="1201" height="562" alt="Screenshot 2026-04-24 at 21 31 35" src="https://github.com/user-attachments/assets/ae9e3621-10e7-4081-ae6b-0daaf0a34264" />
+<img width="696" height="339" alt="Screenshot 2026-04-25 at 13 19 47" src="https://github.com/user-attachments/assets/6965cc43-2d00-4acd-bc6f-e9023a896067" />
 
 
 ---
 
-## In the pipeline
+## Phase 3: Proactive Remediation 🚧
 
-### Phase 5: Proactive Compliance & Remediation  
-Moving beyond simple Deny actions — using `DeployIfNotExists` policies to automatically fix non-compliant resources (e.g., deploying diagnostic settings). Testing remediation tasks that correct drift without manual intervention.
+Moving from blocking bad resources to fixing them. Adding a `DeployIfNotExists` policy to the initiative that ensures every storage account has diagnostic settings forwarding logs to a Log Analytics workspace.
 
-### Phase 6: Scale & Visibility  
-- **Management Groups:** Assigning policies higher up the hierarchy so all subscriptions inherit them automatically.  
-- **Policy as Code:** Exporting policy definitions to JSON/Bicep and managing them via CLI/PowerShell — version-controlled, programmable governance.  
-- **Compliance Dashboard:** Building a single-pane-of-glass view with the Policy Compliance widget, linked to the subscription or management group.
+- Bump the initiative to v1.1.0.
+- Grant the managed identity Log Analytics Contributor + Monitoring Contributor at MG scope.
+- Run a remediation task against pre-existing non-compliant resources and confirm the deployment.
+
+This is where prevention turns into self-healing.
+
 ---
 
-> The philosophy of security by design reduces so many downstream headaches. This lab brings that to life without spending a dime.
+## Phase 4: Policy as Code 📋
 
-> NOTE: This lab will be constantly growing and evolving.
+Everything built in the Portal is going into a Git repo and a pipeline:
+
+- Policy and initiative definitions exported and rewritten as Bicep.
+- GitHub Actions workflow with OIDC federated auth — `what-if` previews on PRs, deploy on merge to `main`.
+- Version-controlled, reviewable, rollback-able governance.
+
+The deliverable is a public repo, not a screenshot.
+
+---
+
+## Phase 5: Operating the Baseline 📋
+
+The discipline that separates a lab from a production system:
+
+- **Audit-then-Deny rollout** using the data already being collected from the blob policy in Audit mode.
+- **Exemptions** with time-bound waivers, named owners, and ticket references — no open-ended exceptions.
+- **Review cadence** for compliance drift, expiring exemptions, and new resource types entering scope.
+
+---
+
+## Phase 6: Results & Control Mapping 📋
+
+Final writeup tying the build back to recognised frameworks:
+
+- Compliance score before vs. after, captured at the MG level.
+- Each policy in the initiative mapped to CIS Azure Benchmark and NIST 800-53 controls.
+- A short retrospective on what broke, what got exempted, and what I'd do differently.
+
+---
+
+> Prevention scales; detection doesn't. This lab is the working proof.
