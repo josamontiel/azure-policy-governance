@@ -48,11 +48,9 @@ In parallel, the blob public-access policy was flipped from `Deny` to `Audit` to
 
 ---
 
-## Phase 3: Proactive Remediation 🚧
+## Phase 3: Proactive Remediation ✅
  
-Moving from blocking bad resources to fixing them. This phase wires up `DeployIfNotExists` for self-healing infrastructure.
- 
-**Completed:**
+The shift from blocking bad resources to fixing them. `DeployIfNotExists` turns Azure Policy from a gatekeeper into a self-healing system.
  
 * **Log Analytics workspace.** Created `law-governance-lab` in `rg-governance-lab` (Pay-as-you-go, 30-day retention) as the destination for diagnostic logs. Deployment was briefly blocked by the Phase 1 tag policy until `costCenter=IT` was added — the system catching its own author.
 * **Managed identity permissions.** Granted the initiative assignment's system-assigned identity two roles at `mg-governance-lab-prod` scope: *Log Analytics Contributor* (to write to the workspace) and *Monitoring Contributor* (to create diagnostic settings on target resources).
@@ -61,12 +59,13 @@ Moving from blocking bad resources to fixing them. This phase wires up `DeployIf
   * *Storage accounts should disable public network access* — built-in, `Audit` mode. A network-flavoured control alongside the existing public-blob policy.
 * **Versioned to 1.1.0** with three new initiative parameters exposed (`diagnosticSettingsEffect`, `logAnalyticsWorkspaceId`, `publicNetworkAccessEffect`) so the same definition can be reused across dev/prod scopes without forking.
 * **Assignment updated** with the workspace resource ID and effect values. Five policies now governed under one assignment.
-**Pending:**
- 
-* Deploy a deliberately non-compliant storage account.
-* Force a policy evaluation scan and confirm non-compliance is reported.
-* Run a remediation task and verify the diagnostic setting actually lands on the target resource.
-This is where prevention turns into self-healing.
+* **Remediation proven end-to-end.** Deployed a deliberately non-compliant test storage account, forced policy evaluation, ran a remediation task. The managed identity authenticated, used its delegated roles, and deployed the `storageAccountsDiagnosticsLogsToWorkspace` diagnostic setting — wired to `law-governance-lab` exactly as parameterised. Compliance state returned to green on the next scan.
+The full chain — evaluation → non-compliance → remediation task → managed identity → role-bound deployment → compliance refresh — held without manual intervention. That's the whole thesis: prevention turning into self-healing.
+
+ <img width="459" height="195" alt="Screenshot 2026-04-29 at 20 23 32" src="https://github.com/user-attachments/assets/94a57a17-a66a-4a97-b357-03ef6a6e66a3" />
+
+<img width="1601" height="812" alt="Screenshot 2026-04-29 at 19 24 20" src="https://github.com/user-attachments/assets/1c6124b9-d795-4db9-894d-d7fa85d72185" />
+
  
 ---
  
