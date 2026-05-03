@@ -71,11 +71,12 @@ The full chain — evaluation → non-compliance → remediation task → manage
  
 ## Phase 4: Policy as Code ✅
  
-Everything built in the Portal, lifted into Terraform. Lives in the [companion repo](https://github.com/josamontiel/azure-policy-governance-iac).
+Everything built in the Portal, lifted into Terraform and deployed through a pipeline. Lives in the [companion repo](https://github.com/josamontiel/azure-policy-governance-iac).
  
 * **Module-and-environment structure.** Each policy, initiative, and assignment translated into reusable Terraform modules. The `environments/prod/` directory composes them with environment-specific values. State held remotely in an Azure Blob Storage backend with versioning.
 * **All five resources under management.** Custom policy, initiative, MG-scoped assignment, system-assigned managed identity, and both role grants. Imported into Terraform without recreating any live resource. `terraform plan` returns clean.
 * **Initiative redesigned during translation.** The Portal-built initiative had no exposed parameters — every value was hardcoded into individual policy references, making the baseline non-reusable across environments. Translated with six properly-scoped parameters; the assignment now overrides them explicitly per scope.
+* **GitHub Actions pipeline with OIDC federated authentication.** Pull requests trigger `terraform plan` and post the diff as a PR comment. Merges to `main` trigger an environment-gated `terraform apply` with required reviewer approval. No long-lived secrets stored anywhere — three federated credentials on the Entra ID app registration cover pull request, main branch, and the `production` environment contexts.
 Several drift findings surfaced during the migration that the Portal had quietly hidden:
  
 * The custom policy's display name described one control (blob public access) while the rule logic implemented another (Shared Key authorization). Discovered during the first `terraform plan` and corrected — the display name was renamed to honestly describe what the rule actually does.
@@ -92,7 +93,6 @@ The discipline that separates a lab from a production system:
 * **Audit-then-Deny rollout** using the data already being collected from the blob and public-network policies in Audit mode.
 * **Exemptions** with time-bound waivers, named owners, and ticket references — no open-ended exceptions.
 * **Review cadence** for compliance drift, expiring exemptions, and new resource types entering scope.
-* **GitHub Actions pipeline** with OIDC federated authentication — `terraform plan` previews on PRs, `apply` on merge to `main`. Currently planned in the IaC repo.
 ---
  
 ## Phase 6: Results & Control Mapping 📋
