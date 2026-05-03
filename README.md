@@ -69,14 +69,19 @@ The full chain — evaluation → non-compliance → remediation task → manage
  
 ---
  
-## Phase 4: Policy as Code 📋
+## Phase 4: Policy as Code ✅
  
-Everything built in the Portal goes into a Git repo and a pipeline:
+Everything built in the Portal, lifted into Terraform. Lives in the [companion repo](https://github.com/josamontiel/azure-policy-governance-iac).
  
-* Policy and initiative definitions exported and rewritten as Bicep.
-* GitHub Actions workflow with OIDC federated auth — `what-if` previews on PRs, deploy on merge to `main`.
-* Version-controlled, reviewable, rollback-able governance.
-The deliverable is a public repo, not a screenshot.
+* **Module-and-environment structure.** Each policy, initiative, and assignment translated into reusable Terraform modules. The `environments/prod/` directory composes them with environment-specific values. State held remotely in an Azure Blob Storage backend with versioning.
+* **All five resources under management.** Custom policy, initiative, MG-scoped assignment, system-assigned managed identity, and both role grants. Imported into Terraform without recreating any live resource. `terraform plan` returns clean.
+* **Initiative redesigned during translation.** The Portal-built initiative had no exposed parameters — every value was hardcoded into individual policy references, making the baseline non-reusable across environments. Translated with six properly-scoped parameters; the assignment now overrides them explicitly per scope.
+Several drift findings surfaced during the migration that the Portal had quietly hidden:
+ 
+* The custom policy's display name described one control (blob public access) while the rule logic implemented another (Shared Key authorization). Discovered during the first `terraform plan` and corrected — the display name was renamed to honestly describe what the rule actually does.
+* A duplicate of the custom policy existed at subscription scope, orphaned with no assignment. Cleaned up.
+* Three redundant policy assignments existed at the same management group scope, evaluating the same controls the initiative already covered. The compliance dashboard had been double- and triple-counting non-compliance findings the entire time. Cleaned up.
+The Portal lets you build governance. Git lets you maintain it.
  
 ---
  
@@ -87,6 +92,7 @@ The discipline that separates a lab from a production system:
 * **Audit-then-Deny rollout** using the data already being collected from the blob and public-network policies in Audit mode.
 * **Exemptions** with time-bound waivers, named owners, and ticket references — no open-ended exceptions.
 * **Review cadence** for compliance drift, expiring exemptions, and new resource types entering scope.
+* **GitHub Actions pipeline** with OIDC federated authentication — `terraform plan` previews on PRs, `apply` on merge to `main`. Currently planned in the IaC repo.
 ---
  
 ## Phase 6: Results & Control Mapping 📋
@@ -99,4 +105,4 @@ Final writeup tying the build back to recognised frameworks:
 * A short retrospective on what broke, what got exempted, and what I'd do differently.
 ---
  
-> Prevention scales; detection doesn't. This lab is the working proof.
+> Prevention scales; detection doesn't. The Portal lets you build governance. Git lets you maintain it.
