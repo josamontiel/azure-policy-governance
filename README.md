@@ -86,23 +86,28 @@ The Portal lets you build governance. Git lets you maintain it.
  
 ---
  
-## Phase 5: Operating the Baseline 📋
+## Phase 5: Operating the Baseline ✅
  
-The discipline that separates a lab from a production system:
+The discipline that separates a lab from a production system.
  
-* **Audit-then-Deny rollout** using the data already being collected from the blob and public-network policies in Audit mode.
-* **Exemptions** with time-bound waivers, named owners, and ticket references — no open-ended exceptions.
-* **Review cadence** for compliance drift, expiring exemptions, and new resource types entering scope.
+* **Incident response.** A routine `terraform plan` flagged unexpected drift on the initiative parameters. Diagnosis revealed a corrupted GitHub Actions secret had been writing a bare GUID instead of the full Log Analytics workspace resource ID — meaning the diagnostic settings remediation engine had been silently failing for an unknown period. Fixed at source (the secret), applied through the pipeline, verified with a fresh remediation task.
+* **Hardening pass.** Phase 3 test fixture deleted. Shared Key access disabled on the state backend storage account, validated through both local Terraform and a full pipeline run — proving AAD-only authentication works end to end with no key dependency.
+* **Time-bound exemption deployed.** The state backend cannot be made fully compliant — public network access is required for both local engineering machines and GitHub-hosted runners to reach the Terraform state. A scoped exemption (`Waiver` category, expiring 2026-11-09, with named owner and quarterly review cadence) was written as its own Terraform module and deployed through the pipeline.
+* **Audit-then-Deny rollout completed.** The public network access policy spent weeks in Audit mode collecting compliance data. By the time it flipped to Deny, the only resource that would have failed was the state backend (now exempted) and the Phase 3 test fixture (deleted). The flip happened through a pull request with full plan review, merged, applied through the production environment gate, and verified with a deliberate violating deployment that got blocked exactly as designed.
+* **OPERATIONS.md documented.** Change flow, review cadence (weekly compliance, monthly exemption review, quarterly posture review), exemption process, and runbook for compliance drops. The runbook directly cites the workspace ID corruption incident as a worked example.
+The full operational layer is now covered: what to change, how to change it, when to review, what to do when something breaks.
+ 
 ---
  
-## Phase 6: Results & Control Mapping 📋
+## Phase 6: Results & Retrospective ✅
  
-Final writeup tying the build back to recognised frameworks:
+Compliance landed at 100% across the initiative with one documented waiver. The substantive engineering, drift remediation, and operational discipline are all in place.
  
-* Compliance score before vs. after, captured at the MG level.
-* Each policy in the initiative mapped to CIS Azure Benchmark and NIST 800-53 controls.
-* Defender for Cloud regulatory compliance dashboard screenshot showing the initiative's effect on the CIS/NIST score.
-* A short retrospective on what broke, what got exempted, and what I'd do differently.
----
+The full writeup lives in **[RESULTS.md](./RESULTS.md)** and covers:
  
-> Prevention scales; detection doesn't. The Portal lets you build governance. Git lets you maintain it.
+* **Compliance metrics** — per-policy breakdown, the journey from "Wild West" to fully governed, and what each resource currently evaluates as
+* **Control mapping** — each policy in the initiative mapped to CIS Microsoft Azure Foundations Benchmark v2.0.0 and NIST SP 800-53 Rev. 5 control families, with honest caveats on where the mappings are direct versus indirect
+* **Retrospective** — what broke during the build (a custom policy that lied about itself, three redundant assignments, a corrupted CI secret, a near-destructive provider casing bug, a missing federated credential, an Azure CLI listing quirk, one self-inflicted secrets leak), what got handled cleanly, and what would change in v2
+
+
+> Prevention scales; detection doesn't. The Portal lets you build governance. Git lets you maintain it. governance. Git lets you maintain it.
