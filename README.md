@@ -1,4 +1,6 @@
 # Building an Azure Governance MVP 🛡️
+
+> **Lab status**: this Azure environment was decommissioned in May 2026 after the project completed. The repository, screenshots, results writeup, and operational documentation all remain as-is for portfolio reference.
  
 A hands-on project simulating what a security engineer actually does when locking down a "Wild West" Azure environment — using **Azure Policy** as the enforcement layer.
  
